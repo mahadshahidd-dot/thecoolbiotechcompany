@@ -46,7 +46,7 @@
   .icon .label { display: block; width: 100px; margin: 0 auto; }
   .icon:hover { background: rgba(125, 175, 230, .12); }
   .icon[aria-expanded="true"] { background: rgba(125, 175, 230, .22); border-color: rgba(100, 150, 210, .45); }
-  .icon:focus-visible, .close:focus-visible { outline: 3px solid #7a3fe0; outline-offset: 2px; }
+  .icon:focus-visible, .close:focus-visible, .orb:focus-visible { outline: 3px solid #7a3fe0; outline-offset: 2px; }
 
   /* ---------- Logo ---------- */
   .logo {
@@ -79,7 +79,7 @@
     background: #fffcfe; border: 7px solid var(--pink); border-top: 0;
     box-shadow: 0 0 70px 26px var(--green-glow);
   }
-  .window.pop { animation: pop .16s ease-out; }
+  .window.pop, .side.pop { animation: pop .16s ease-out; }
   @keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
   .titlebar { height: 82px; flex: none; display: flex; align-items: center; background: var(--pink); margin: 0 -7px; padding-left: 20px; }
   .close {
@@ -98,13 +98,23 @@
     color: #fff; font-size: 22px; text-shadow: 0 1px 1px rgba(90, 0, 80, .3);
   }
   .orb {
-    width: 52px; height: 52px; border-radius: 50%;
+    width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; flex: none; cursor: pointer;
     background:
       radial-gradient(circle at 32% 28%, #e8d3ff 0, rgba(232, 211, 255, 0) 30%),
       radial-gradient(circle at 72% 78%, #3a1a98, rgba(58, 26, 152, 0) 60%),
       conic-gradient(from 200deg, #8a4ff0, #b684f8, #6a35d6, #9a62f2, #8a4ff0);
     box-shadow: inset 0 0 8px rgba(30, 0, 80, .5), 0 0 0 1px rgba(255, 255, 255, .25);
   }
+
+  /* ---------- Side panel (opens from the orb) ---------- */
+  .side {
+    position: absolute; left: 0; bottom: 0; width: 176px; height: 330px; z-index: 6;
+    display: flex; flex-direction: column; transform-origin: bottom left;
+    background: linear-gradient(to bottom, #f0bfea 0%, #f0bfea 70%, #d2b1cc 100%);
+  }
+  .side .close { align-self: flex-end; margin: 6px 0 0; padding: 4px 10px; font-size: 20px; color: #000; text-shadow: none; }
+  .side .close:hover { background: rgba(255, 255, 255, .45); }
+  .side p { margin: 0; padding: 46px 36px 0; text-align: center; font-size: 24px; line-height: 1.45; }
 
   /* ---------- Small screens ---------- */
   @media (max-width: 820px) {
@@ -120,7 +130,7 @@
     .taskbar { padding: 0 18px; font-size: 15px; }
     .orb { width: 40px; height: 40px; }
   }
-  @media (prefers-reduced-motion: reduce) { .window.pop { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .window.pop, .side.pop { animation: none; } }
 </style>
 </head>
 <body>
@@ -194,10 +204,15 @@
     </div>
   </section>
 
+  <aside class="side" id="side" aria-label="Coming soon" hidden>
+    <button class="close" type="button" aria-label="Close panel">X</button>
+    <p>Coming soon</p>
+  </aside>
+
 </main>
 
 <footer class="taskbar">
-  <div class="orb" aria-hidden="true"></div>
+  <button class="orb" type="button" aria-label="Open menu" aria-controls="side" aria-expanded="false"></button>
   <div>Today’s date : <span id="date">28 oct 2026</span></div>
 </footer>
 
@@ -227,7 +242,28 @@
 
   icons.forEach(i => i.addEventListener('click', () => openWindow(i.dataset.open, i)));
   closeBtn.addEventListener('click', closeWindow);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !win.hidden) closeWindow(); });
+  const side = document.getElementById('side');
+  const orb = document.querySelector('.orb');
+  const sideClose = side.querySelector('.close');
+
+  function toggleSide(show) {
+    side.hidden = !show;
+    orb.setAttribute('aria-expanded', String(show));
+    if (show) {
+      side.classList.remove('pop'); void side.offsetWidth; side.classList.add('pop');
+      sideClose.focus();
+    } else {
+      orb.focus();
+    }
+  }
+  orb.addEventListener('click', () => toggleSide(side.hidden));
+  sideClose.addEventListener('click', () => toggleSide(false));
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!side.hidden) toggleSide(false);
+    else if (!win.hidden) closeWindow();
+  });
 
   // Taskbar date, e.g. "28 oct 2026". To lock it to a fixed date, delete this block.
   const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
